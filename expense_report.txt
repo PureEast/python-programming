@@ -1,0 +1,16 @@
+===================================
+EXPENSE SUMMARY REPORT
+Generated: 2026-09-17
+===================================
+
+Total records: 4
+Total spending: $1729.00
+
+==== Spending by Category ====
+Bills                $   1129.00
+Shopping             $    600.00
+
+==== This Month (September 2026) ====
+Records this month: 4
+Spending this month: $1729.00
+===================================
