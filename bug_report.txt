@@ -1,0 +1,160 @@
+Student Record Management System - Bug Report
+Original file: student_records.py
+
+Bug #: 1
+Type: Crash
+Line(s): 67-69
+Original:
+        csv_file = open(csv_filename, newline="")
+        csv_reader = csv.DictReader(csv_file)
+        csv_file.close()
+Fixed:
+        with open(filename, "r", newline="", encoding="utf-8-sig") as csv_file:
+            csv_reader = csv.DictReader(csv_file)
+            # Iterate through csv_reader while the file is still open.
+Symptom: Iterating over csv_reader after closing the file can raise ValueError: I/O operation on closed file.
+Explanation: Keep the file open for the entire iteration, preferably with a with statement so it closes safely afterward.
+
+Bug #: 2
+Type: Logic
+Line(s): 135-140
+Original:
+            while search_index <= len(student_records):
+                if student_records[search_index]["StudentID"].upper() == search_id:
+                    found_student = student_records[search_index]
+                    search_index = len(student_records)  - 1      # Force loop to end
+                else:
+                    search_index = search_index + 1
+Fixed:
+            search_index = 0
+            while search_index < len(student_records):
+                if student_records[search_index]["StudentID"].strip().upper() == search_id:
+                    found_student = student_records[search_index]
+                    break
+                search_index += 1
+Symptom: The <= condition permits the index to reach len(student_records), which is outside the list and causes IndexError.
+Explanation: Use < rather than <= so the index never reaches the list length; the loop's termination behaviour is separately corrected in Bug 10.
+
+Bug #: 3
+Type: Logic
+Line(s): 86
+Original:
+            student_records.append(student_record)
+Fixed:
+        loaded_records = []
+        # Append to this temporary list, then replace student_records after a successful load.
+        loaded_records.append(student_record)
+        student_records = loaded_records
+Symptom: Loading the same CSV twice appends the same ten records again, resulting in 20 records.
+Explanation: Build a fresh list during each load and replace the old collection only after the file has been read successfully.
+
+Bug #: 4
+Type: Logic
+Line(s): 22 and 96-100
+Original:
+        csv_loaded = False
+        if not csv_loaded:
+            print()
+            print("No data loaded. Please use Option 1 to read a CSV file first.")
+Fixed:
+        csv_loaded = True  # Set only after a successful CSV load.
+Symptom: Options 2 and 3 continue to say no data is loaded even after reading the CSV.
+Explanation: Update the loaded-state flag after a successful read so the menu can access the records.
+
+Bug #: 5
+Type: Logic
+Line(s): 106-119
+Original:
+            row_number = 1
+            for current_student in student_records:
+                print(
+                    f"{row_number:<5}"
+                    f"{current_student['StudentID']:<12}"
+                    f"{current_student['StudentName']:<22}"
+                    f"{current_student['Major']:<24}"
+                    f"{current_student['GPA']:<6}"
+                    f"{current_student['TotalCredits']}"
+                )
+Fixed:
+            for row_number, current_student in enumerate(student_records, start=1):
+                print(
+                    f"{row_number:<5}"
+                    f"{current_student['StudentID']:<12}"
+                    f"{current_student['StudentName']:<22}"
+                    f"{current_student['Major']:<24}"
+                    f"{current_student['GPA']:<6}"
+                    f"{current_student['TotalCredits']}"
+                )
+Symptom: The listing loop does not increment row_number, so every row would display the same row number.
+Explanation: enumerate(..., start=1) supplies a new sequential number for each student.
+
+Bug #: 6
+Type: Logic
+Line(s): 136
+Original:
+                if student_records[search_index]["StudentID"].upper() == search_id:
+Fixed:
+                if student_records[search_index]["StudentID"].strip().upper() == search_id.strip().upper():
+Symptom: Searching for an ID in lowercase (for example, s1005) does not match the stored uppercase ID.
+Explanation: Normalize both stored and entered IDs with strip() and upper() before comparing them.
+
+Bug #: 7
+Type: Crash
+Line(s): 149
+Original:
+                print(f"  Student ID    : {found_student['Student_ID']}")
+Fixed:
+                print(f"  Student ID    : {found_student['StudentID']}")
+Symptom: A successful search raises KeyError because the dictionary contains StudentID, not Student_ID.
+Explanation: Use the exact key name used when each record dictionary is created.
+
+Bug #: 8
+Type: Logic
+Line(s): 159
+Original:
+    elif menu_choice == 4:
+Fixed:
+    elif menu_choice == "4":
+Symptom: Menu input is returned as text, so entering 4 does not satisfy the integer comparison and the exit option is rejected.
+Explanation: Compare the user's string input with the string "4".
+
+Bug #: 9
+Type: Subtle
+Line(s): 25 and 144-146
+Original:
+found_student = None
+...
+            if found_student is None:
+                print(f"No student found with ID '{search_id}'.")
+Fixed:
+            found_student = None  # Reset for every new search, or use a local return value.
+            found_student = search_student_by_id(search_id)
+Symptom: After one successful search, a later unsuccessful search can still display the previous matching student because found_student is not reset.
+Explanation: Make each search result local to that search so a failed lookup cannot reuse stale state.
+
+Bug #: 10
+Type: Subtle
+Line(s): 138-140
+Original:
+                    search_index = len(student_records)  - 1      # Force loop to end
+                else:
+                    search_index = search_index + 1
+Fixed:
+            for current_student in student_records:
+                if current_student["StudentID"].strip().upper() == search_id.strip().upper():
+                    return current_student
+Symptom: Setting the index to len(student_records)-1 does not reliably terminate the loop; if the last record matches, the loop can repeatedly revisit that record indefinitely.
+Explanation: Use an explicit return/break when a match is found rather than trying to force loop termination by assigning an index.
+
+Testing notes:
+- T1: Load students.csv; expect 10 records.
+- T2: Load it again; expect 10 records, not 20.
+- T3: List; rows should be numbered 1 through 10.
+- T4: Search S1005; expect Emily Chen.
+- T5: Search s1005; expect Emily Chen.
+- T6: Search S9999; expect a not-found message.
+- T7: Search S1001, then S9999; second search must not repeat Alice Johnson.
+- T8: Search S1010; expect James Turner.
+- T9: Enter 4; program exits with the goodbye message.
+
+The line numbers above refer to the supplied original file, student_records.py. The code shown under Fixed is the essential correction; helper functions or classes in the final implementation may organize it differently.
